@@ -7,8 +7,7 @@ The default `CMD` copies over the required [JMX Exporter](https://github.com/pro
 ## Files available
 
 * `$SHARED_VOLUME_PATH/jmx_prometheus_javaagent.jar`: the [JMX Exporter](https://github.com/prometheus/jmx_exporter) javaagent JAR file.
-* `$SHARED_VOLUME_PATH/config/*.yaml`: example config files for the exporter.
-    * I only bothered to copy over the [example Kafka config from upstream](https://github.com/prometheus/jmx_exporter/blob/master/example_configs/kafka-0-8-2.yml) because that's what I was using.
+* `$SHARED_VOLUME_PATH/config/*.yaml`: example config files for the exporter. You can pick some [here](https://github.com/prometheus/jmx_exporter/blob/master/example_configs/)
 
 ## Using this as a Kubernetes Init Container
 
@@ -20,7 +19,7 @@ Add this to `initContainers` of your `Deployment` or `StatefulSet`:
 spec:
   initContainers:
   - name: prometheus-jmx-exporter
-    image: spdigital/prometheus-jmx-exporter-kubernetes:0.3.1
+    image: matsouch/prometheus-jmx-exporter-kubernetes:1.0.1
     env:
     - name: SHARED_VOLUME_PATH
       value: /shared-volume
@@ -29,7 +28,7 @@ spec:
       name: shared-volume
 ```
 
-The init container and your Kafka container will share a volume:
+The init container and your application container will share a volume:
 
 ```yaml
 volumes:
@@ -37,11 +36,12 @@ volumes:
   emptyDir: {}
 ```
 
-In your Kafka container, set `KAFKA_OPTS` to refer to files placed by the `prometheus-jmx-exporter` container into the shared volume:
+In your application container, set your Docker application run image params to refer to files placed by the `prometheus-jmx-exporter` container into the shared volume.
 
-```yaml
-- name: KAFKA_OPTS
-  value: -javaagent:/shared-volume/jmx_prometheus_javaagent.jar=19000:/shared-volume/configs/kafka-config.yaml
+Example with a Dockerfile and the camel configuration available in the repository :
+
+```Dockerfile
+ENTRYPOINT java -javaagent:/shared-volume/jmx_prometheus_javaagent.jar=9090:/shared-volume/configs/camel-config.yml -jar /app.jar
 ```
 
 Don't forget to annotate your resources so Prometheus will scrape your pod's `/metrics` endpoint:
@@ -49,5 +49,5 @@ Don't forget to annotate your resources so Prometheus will scrape your pod's `/m
 ```yaml
 annotations:
   "prometheus.io/scrape": "true"
-  "prometheus.io/port": "19000"
+  "prometheus.io/port": "9090"
 ```
